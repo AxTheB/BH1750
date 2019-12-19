@@ -10,6 +10,8 @@
 
 */
 
+#define BH1750_QUIET 1
+
 #include "BH1750.h"
 
 // Define milliseconds delay for ESP8266 platform
@@ -28,19 +30,19 @@
 #endif
 
 
-// Legacy Wire.write() function fix
+// Legacy WIRE.write() function fix
 #if (ARDUINO >= 100)
-  #define __wire_write(d) Wire.write(d)
+  #define __wire_write(d) WIRE.write(d)
 #else
-  #define __wire_write(d) Wire.send(d)
+  #define __wire_write(d) WIRE.send(d)
 #endif
 
 
-// Legacy Wire.read() function fix
+// Legacy WIRE.read() function fix
 #if (ARDUINO >= 100)
-  #define __wire_read() Wire.read()
+  #define __wire_read() WIRE.read()
 #else
-  #define __wire_read() Wire.receive()
+  #define __wire_read() WIRE.receive()
 #endif
 
 
@@ -57,13 +59,14 @@ BH1750::BH1750(byte addr) {
 }
 
 
+
 /**
  * Configure sensor
  * @param mode Measurement mode
  */
-bool BH1750::begin(Mode mode) {
+bool BH1750::begin(SoftwareWire wire, Mode mode) {
 
-  // I2C is expected to be initialized outside this library
+  WIRE = wire;
 
   // Configure sensor in specified mode
   return configure(mode);
@@ -91,9 +94,9 @@ bool BH1750::configure(Mode mode) {
     case BH1750::ONE_TIME_LOW_RES_MODE:
 
       // Send mode to sensor
-      Wire.beginTransmission(BH1750_I2CADDR);
+      WIRE.beginTransmission(BH1750_I2CADDR);
       __wire_write((uint8_t)BH1750_MODE);
-      ack = Wire.endTransmission();
+      ack = WIRE.endTransmission();
 
       // Wait a few moments to wake up
       _delay_ms(10);
@@ -101,7 +104,9 @@ bool BH1750::configure(Mode mode) {
 
     default:
       // Invalid measurement mode
+#ifndef BH1750_QUIET
       Serial.println(F("[BH1750] ERROR: Invalid mode"));
+#endif
       break;
 
   }
@@ -111,6 +116,7 @@ bool BH1750::configure(Mode mode) {
     case 0:
       BH1750_MODE = mode;
       return true;
+#ifndef BH1750_QUIET
     case 1: // too long for transmit buffer
       Serial.println(F("[BH1750] ERROR: too long for transmit buffer"));
       break;
@@ -126,6 +132,7 @@ bool BH1750::configure(Mode mode) {
     default:
       Serial.println(F("[BH1750] ERROR: undefined error"));
       break;
+#endif
   }
 
   return false;
@@ -142,22 +149,24 @@ bool BH1750::configure(Mode mode) {
 bool BH1750::setMTreg(byte MTreg) {
   //Bug: lowest value seems to be 32!
   if (MTreg <= 31 || MTreg > 254) {
+#ifndef BH1750_QUIET
     Serial.println(F("[BH1750] ERROR: MTreg out of range"));
+#endif
     return false;
   }
   byte ack = 5;
   // Send MTreg and the current mode to the sensor
   //   High bit: 01000_MT[7,6,5]
   //    Low bit: 011_MT[4,3,2,1,0]
-  Wire.beginTransmission(BH1750_I2CADDR);
+  WIRE.beginTransmission(BH1750_I2CADDR);
   __wire_write((0b01000 << 3) | (MTreg >> 5));
-  ack = Wire.endTransmission();
-  Wire.beginTransmission(BH1750_I2CADDR);
+  ack = WIRE.endTransmission();
+  WIRE.beginTransmission(BH1750_I2CADDR);
   __wire_write((0b011 << 5 )  | (MTreg & 0b11111));
-  ack = ack | Wire.endTransmission();
-  Wire.beginTransmission(BH1750_I2CADDR);
+  ack = ack | WIRE.endTransmission();
+  WIRE.beginTransmission(BH1750_I2CADDR);
   __wire_write(BH1750_MODE);
-  ack = ack | Wire.endTransmission();
+  ack = ack | WIRE.endTransmission();
 
   // Wait a few moments to wake up
   _delay_ms(10);
@@ -179,6 +188,7 @@ bool BH1750::setMTreg(byte MTreg) {
           break;
   	  }
       return true;
+#ifndef BH1750_QUIET
     case 1: // too long for transmit buffer
       Serial.println(F("[BH1750] ERROR: too long for transmit buffer"));
       break;
@@ -194,6 +204,7 @@ bool BH1750::setMTreg(byte MTreg) {
     default:
       Serial.println(F("[BH1750] ERROR: undefined error"));
       break;
+#endif
   }
 
   return false;
@@ -210,7 +221,9 @@ bool BH1750::setMTreg(byte MTreg) {
 float BH1750::readLightLevel(bool maxWait) {
 
   if (BH1750_MODE == UNCONFIGURED) {
+#ifndef BH1750_QUIET
     Serial.println(F("[BH1750] Device is not configured!"));
+#endif
     return -2.0;
   }
 
@@ -218,9 +231,9 @@ float BH1750::readLightLevel(bool maxWait) {
   float level = -1.0;
 
   // Send mode to sensor
-  Wire.beginTransmission(BH1750_I2CADDR);
+  WIRE.beginTransmission(BH1750_I2CADDR);
   __wire_write((uint8_t)BH1750_MODE);
-  Wire.endTransmission();
+  WIRE.endTransmission();
 
   // Wait for measurement to be taken.
   // Measurements have a maximum measurement time and a typical measurement
@@ -247,7 +260,7 @@ float BH1750::readLightLevel(bool maxWait) {
 
   // Read two bytes from the sensor, which are low and high parts of the sensor
   // value
-  if (2 == Wire.requestFrom((int)BH1750_I2CADDR, (int)2)) {
+  if (2 == WIRE.requestFrom((int)BH1750_I2CADDR, (int)2)) {
     unsigned int tmp = 0;
     tmp = __wire_read();
     tmp <<= 8;

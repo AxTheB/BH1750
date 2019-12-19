@@ -21,7 +21,7 @@
   #include <WProgram.h>
 #endif
 
-#include "Wire.h"
+#include <SoftwareWire.h>
 
 // Uncomment, to enable debug messages
 // #define BH1750_DEBUG
@@ -60,7 +60,7 @@ class BH1750 {
     };
 
     BH1750(byte addr = 0x23);
-    bool begin(Mode mode = CONTINUOUS_HIGH_RES_MODE);
+    bool begin(SoftwareWire wire, Mode mode = CONTINUOUS_HIGH_RES_MODE);
     bool configure(Mode mode);
     bool setMTreg(byte MTreg);
     float readLightLevel(bool maxWait = false);
@@ -73,6 +73,7 @@ class BH1750 {
     // for more information.
     const float BH1750_CONV_FACTOR = 1.2;
     Mode BH1750_MODE = UNCONFIGURED;
+    SoftwareWire WIRE;
 
 };
 

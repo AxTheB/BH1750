@@ -1,6 +1,7 @@
 # BH1750
 
-[![Build Status](https://travis-ci.org/claws/BH1750.svg?branch=master)](https://travis-ci.org/claws/BH1750)<br>
+Quick and dirty edit for SoftwareWire
+
 
 This package contains an Arduino library for digital light sensor breakout boards containing the
 BH1750FVI IC.
